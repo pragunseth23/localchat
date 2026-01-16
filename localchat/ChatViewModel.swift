@@ -48,7 +48,7 @@ final class ChatViewModel: ObservableObject {
         do {
             // LEAP will download the model if needed or reuse a cached copy.
             let modelRunner = try await Leap.load(
-                model: "LFM2-1.2B",
+                model: "LFM2.5-1.2B-Instruct",
                 quantization: "Q5_K_M",
                 downloadProgressHandler: { [weak self] progress, speed in
                     Task { @MainActor [weak self] in
@@ -90,8 +90,44 @@ final class ChatViewModel: ObservableObject {
             isDownloading = false
             
         } catch {
-            errorMessage = "Failed to load model: \(error.localizedDescription)"
-            print("Failed to load model: \(error)")
+            // Provide more detailed error information
+            var detailedError = "Failed to load model: \(error.localizedDescription)"
+            
+            // Print detailed error information to console for debugging
+            print("=== Model Loading Error ===")
+            print("Error: \(error)")
+            print("Error type: \(type(of: error))")
+            
+            // Check if it's an NSError for more details
+            if let nsError = error as NSError? {
+                print("NSError domain: \(nsError.domain)")
+                print("NSError code: \(nsError.code)")
+                print("NSError userInfo: \(nsError.userInfo)")
+                
+                // Add more context based on error code
+                if nsError.domain.contains("Leap") || nsError.domain.contains("leap") {
+                    detailedError += "\n\nPossible causes:"
+                    detailedError += "\n• Model 'LFM2.5-1.2B-Instruct' with quantization 'Q5_K_M' may not exist"
+                    detailedError += "\n• Network connection issue"
+                    detailedError += "\n• Insufficient device memory"
+                    detailedError += "\n• Invalid model format"
+                }
+            }
+            
+            // Try to extract more information from the error description
+            let errorString = String(describing: error)
+            if errorString.contains("model") || errorString.contains("Model") {
+                detailedError += "\n\nTip: Verify the model name and quantization are correct."
+                detailedError += "\nCheck the LEAP Model Library for available models."
+            }
+            
+            if errorString.contains("network") || errorString.contains("Network") || errorString.contains("connection") {
+                detailedError += "\n\nTip: Check your internet connection and try again."
+            }
+            
+            errorMessage = detailedError
+            print("========================")
+            
             isDownloading = false
             isInitializing = false
         }
